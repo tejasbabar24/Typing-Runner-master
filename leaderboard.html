@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leaderboard</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
+
+      body {
+        font-family: "Orbitron", sans-serif;
+        background:
+          linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0)),
+          url("background.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+          radial-gradient(
+            ellipse at 30% 50%,
+            rgba(139, 0, 0, 0.2) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse at 70% 50%,
+            rgba(139, 0, 0, 0.2) 0%,
+            transparent 50%
+          );
+        pointer-events: none;
+      }
+
+      .container {
+        max-width: 900px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+
+      .title {
+        text-align: center;
+        font-size: 3.5rem;
+        font-weight: bold;
+        color: #ff3333;
+        text-shadow:
+          0 0 10px #ff3333,
+          0 0 20px #ff3333,
+          0 0 30px #ff3333,
+          0 0 40px #ff0000;
+        margin-bottom: 40px;
+        letter-spacing: 8px;
+        animation: glow 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes glow {
+        from {
+          text-shadow:
+            0 0 10px #ff3333,
+            0 0 20px #ff3333,
+            0 0 30px #ff3333,
+            0 0 40px #ff0000;
+        }
+        to {
+          text-shadow:
+            0 0 20px #ff3333,
+            0 0 30px #ff3333,
+            0 0 40px #ff3333,
+            0 0 50px #ff0000,
+            0 0 60px #ff0000;
+        }
+      }
+
+      .leaderboard {
+        background: rgba(139, 0, 0, 0.15);
+        border: 2px solid rgba(255, 51, 51, 0.8);
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow:
+          0 0 30px rgba(255, 51, 51, 0.6),
+          inset 0 0 50px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(5px);
+        max-height: 600px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        margin-top: 100px;
+      }
+
+      /* Custom scrollbar styling */
+      .leaderboard::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      .leaderboard::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 10px;
+      }
+
+      .leaderboard::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #ff3333, #ff6600);
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+      }
+
+      .leaderboard::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #ff4444, #ff7700);
+        box-shadow: 0 0 15px rgba(255, 51, 51, 0.8);
+      }
+
+      .leaderboard-item {
+        display: grid;
+        grid-template-columns: 60px 1fr 120px 120px 120px; /* rank, name, WPM, Accuracy, Distance */
+        align-items: center;
+        padding: 18px 20px;
+        margin-bottom: 12px;
+        background: rgba(139, 0, 0, 0.15);
+        border: 2px solid rgba(255, 51, 51, 0.4);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        backdrop-filter: blur(3px);
+      }
+
+      .leaderboard-item::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 100, 0, 0.3),
+          transparent
+        );
+        transition: left 0.5s ease;
+      }
+
+      .leaderboard-item:hover::before {
+        left: 100%;
+      }
+
+      .leaderboard-item.top-3 {
+        background: rgba(139, 0, 0, 0.25);
+        border: 2px solid rgba(255, 51, 51, 0.7);
+        box-shadow: 0 0 15px rgba(255, 51, 51, 0.5);
+      }
+
+      .leaderboard-item.rank-1 {
+        background: rgba(139, 0, 0, 0.35);
+        border: 2px solid rgba(255, 68, 68, 0.9);
+        box-shadow: 0 0 25px rgba(255, 69, 0, 0.7);
+      }
+
+      .leaderboard-item:hover {
+        transform: translateX(5px);
+        border-color: #ff4444;
+        box-shadow: 0 0 20px rgba(255, 51, 51, 0.6);
+      }
+
+      .rank {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #ff6666;
+        text-shadow: 0 0 5px #ff3333;
+      }
+
+      .rank-1 .rank {
+        color: #ffaa00;
+        text-shadow: 0 0 10px #ff6600;
+      }
+
+      .player-name {
+        font-size: 1.2rem;
+        color: #fff;
+        text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .fire-icon {
+        display: inline-block;
+        color: #ff6600;
+        animation: flicker 1.5s infinite alternate;
+      }
+
+      @keyframes flicker {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      .medal {
+        font-size: 1.8rem;
+        margin-right: 5px;
+        display: inline-block;
+        animation: shine 3s infinite;
+      }
+
+      .medal-gold {
+        filter: drop-shadow(0 0 8px #ffd700);
+      }
+
+      .medal-silver {
+        filter: drop-shadow(0 0 8px #c0c0c0);
+      }
+
+      .medal-bronze {
+        filter: drop-shadow(0 0 8px #cd7f32);
+      }
+
+      @keyframes shine {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      .wpm {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #ffaa00;
+        text-shadow: 0 0 5px #ff6600;
+      }
+
+      .accuracy {
+        font-size: 1rem;
+        color: #66ff66;
+        text-align: right;
+      }
+
+      .accuracy-value {
+        font-weight: bold;
+        font-size: 1.2rem;
+        text-shadow: 0 0 5px #00ff00;
+      }
+
+      .accuracy-label {
+        font-size: 0.75rem;
+        color: #88ff88;
+        display: block;
+      }
+
+      .buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+        gap: 20px;
+      }
+
+      .btn {
+        padding: 12px 30px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 2px solid #00ccff;
+        border-radius: 8px;
+        color: #00ccff;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        box-shadow: 0 0 10px rgba(0, 204, 255, 0.3);
+        backdrop-filter: blur(5px);
+        font-family: "Orbitron", sans-serif;
+      }
+
+      .btn:hover {
+        background: rgba(0, 204, 255, 0.2);
+        box-shadow: 0 0 20px rgba(0, 204, 255, 0.6);
+        transform: translateY(-2px);
+      }
+
+      @media (max-width: 768px) {
+        .title {
+          font-size: 2rem;
+          letter-spacing: 4px;
+        }
+
+        .leaderboard-item {
+          grid-template-columns: 50px 1fr 90px 90px 90px;
+          padding: 12px 15px;
+        }
+
+        .rank {
+          font-size: 1.2rem;
+        }
+
+        .player-name {
+          font-size: 1rem;
+        }
+
+        .wpm {
+          font-size: 1.1rem;
+        }
+
+        .accuracy-value {
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="title"></h1>
+
+      <div class="leaderboard" id="leaderboard">
+        <!-- Leaderboard items will be inserted here by JavaScript -->
+      </div>
+
+    <script type="module">
+      import { getScoresFromFirebase } from './firebaseScores.js';
+
+      const leaderboardEl = document.getElementById('leaderboard');
+      const titleEl = document.querySelector('.title');
+    
+
+      const medals = {
+        1: '<span class="medal medal-gold">🥇</span>',
+        2: '<span class="medal medal-silver">🥈</span>',
+        3: '<span class="medal medal-bronze">🥉</span>',
+      };
+
+      function makeRow(rank, name, wpm, accuracy, distance) {
+        const div = document.createElement('div');
+        div.className = `leaderboard-item ${rank <= 3 ? 'top-3' : ''} ${rank === 1 ? 'rank-1' : ''}`;
+        div.innerHTML = `
+            <div class="rank">${rank}</div>
+            <div class="player-name">
+              ${medals[rank] || ''}
+              ${escapeHtml(name)}
+            </div>
+            <div class="wpm">${wpm} WPM</div>
+            <div class="accuracy">
+              <span class="accuracy-value">${accuracy}%</span>
+              <span class="accuracy-label">ACCURACY</span>
+            </div>
+            <div class="wpm">${distance} m</div>
+        `;
+        return div;
+      }
+
+      function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+      }
+
+      async function loadAndRender() {
+        leaderboardEl.innerHTML = '<div class="leaderboard-item">Loading...</div>';
+        try {
+          const rows = await getScoresFromFirebase({ limit: 100 });
+
+          if (!rows || rows.length === 0) {
+            leaderboardEl.innerHTML = '<div class="leaderboard-item">No scores yet</div>';
+            return;
+          }
+
+          leaderboardEl.innerHTML = '';
+          // Sort by distance (meta.distance if present, otherwise numeric score)
+          rows.sort((a, b) => {
+            const da = Number((a.meta && a.meta.distance) != null ? a.meta.distance : (a.score || 0));
+            const db = Number((b.meta && b.meta.distance) != null ? b.meta.distance : (b.score || 0));
+            return db - da;
+          });
+
+          // prefer explicit meta.distance if present; otherwise fallback to numeric score
+          rows.forEach((rec, idx) => {
+            const rank = idx + 1;
+            const name = rec.name || 'Anonymous';
+            const meta = rec.meta || {};
+            const wpm = meta.wpm != null ? Number(Math.round(meta.wpm * 100) / 100) : 0;
+            const accuracy = meta.accuracy != null ? Number(Math.round(meta.accuracy * 100) / 100) : (meta.accuracy || 0);
+            const distance = Number(meta.distance != null ? meta.distance : (rec.score || 0));
+
+            const row = makeRow(rank, name, wpm, accuracy, distance);
+            leaderboardEl.appendChild(row);
+          });
+
+          // entrance animation
+          const items = document.querySelectorAll('.leaderboard-item');
+          items.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-30px)';
+            setTimeout(() => {
+              item.style.transition = 'all 0.45s ease';
+              item.style.opacity = '1';
+              item.style.transform = 'translateX(0)';
+            }, index * 70);
+          });
+
+        } catch (err) {
+          console.error('Failed to load leaderboard', err);
+          leaderboardEl.innerHTML = '<div class="leaderboard-item">Failed to load leaderboard</div>';
+        }
+      }
+
+      // initial load
+      loadAndRender();
+    </script>
+  </body>
+</html>

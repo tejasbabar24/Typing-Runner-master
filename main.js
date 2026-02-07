@@ -1,3 +1,5 @@
+import {postScoreToFirebase , getScoresFromFirebase} from "./firebaseScores.js";
+
 let playerName = null;
 
 window.addEventListener("single-game-start", (e) => {
@@ -1295,16 +1297,40 @@ function showFinalLeaderboard() {
     if (btn) btn.onclick = () => { overlay.remove(); location.reload(); };
 }
 
+let leaderboardTimer = 0;
+
 function finishGameByTime() {
     if (!gameTimerRunning) return;
     gameTimerRunning = false;
     paused = true;
     gameOver = true;
 
-    // spawnPortal();
+    // Get final stats
+    const { wpm, acc } = computeStats();
+    const playerNameInput = document.getElementById("playerName");
+    const playerName = playerNameInput?.value || "Anonymous";
+    const distanceCovered = Math.round(-player.position.z) || 0;
 
+    // Store game results to Firebase
+    const gameStats = {
+        wpm: Math.round(wpm * 100) / 100,
+        accuracy: Math.round(acc * 10000) / 100, // as percentage
+        distance: distanceCovered,
+        sessionTyped: sessionTyped,
+        sessionWrong: sessionWrong
+    };
+
+    postScoreToFirebase(distanceCovered, {
+        name: playerName,
+        meta: gameStats
+    }).catch(err => console.error("Failed to save score:", err));
+
+    console.log("Game finished - Final stats:", { name: playerName, ...gameStats });
     bgm.setVolume(0.15); // muffled creepy feel
     spawnPortalAtPlayer();
+
+    
+    
 }
 
 function setGameOver(msg) {
@@ -1548,6 +1574,10 @@ function tick(now) {
     // lightning auto trigger
     if (now > nextLightningTime && !paused) {
         triggerLightning();
+    }
+
+    if(portalFade >=1){
+        location.assign('../leaderboard.html');
     }
     updatePlayerSink(dt);
     updatePortalFade(dt);
