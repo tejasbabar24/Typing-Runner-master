@@ -29,23 +29,30 @@ scene.fog = new THREE.FogExp2(
   BASE_FOG_COLOR,
   0.06 // start dense (slow speed)
 );
-const FOG_DENSE = 0.175;  // slow / struggling
+const FOG_DENSE = 0.145;  // slow / struggling
 const FOG_THIN  = 0.02;   // fast / confident
 
 function updateFogBySpeed(dt) {
   if (!scene.fog || !scene.fog.isFogExp2) return;
 
-  // Normalize speed
-  const speed01 = Math.min(player0Speed / 7.5, 1);
+  // Normalize speed (0 → slow, 1 → fast)
+  const speed01 = Math.min(player0Speed / 2, 1);
 
   // Invert: slow = dense fog
   const targetDensity =
     FOG_DENSE + (FOG_THIN - FOG_DENSE) * speed01;
 
-  // Smooth transition (very important)
-  const SMOOTH = 2.5;
+  const current = scene.fog.density;
+
+  // Different smoothing speeds
+  const SMOOTH_IN  = 1.5;  // dense comes slowly
+  const SMOOTH_OUT = 7.5;  // clears quickly
+
+  const smooth =
+    targetDensity > current ? SMOOTH_IN : SMOOTH_OUT;
+
   scene.fog.density +=
-    (targetDensity - scene.fog.density) * SMOOTH * dt;
+    (targetDensity - current) * smooth * dt;
 }
 
 // scene.fog = new THREE.Fog(new THREE.Color(0x2a0b07), 10, 220); // deep red-ish fog
@@ -96,19 +103,19 @@ window.addEventListener("single-game-start", (e) => {
   loadPlayer();
   startCountdownAndGame();
   if (!bgm.isPlaying) bgm.play();
-  if (enemyBGMReady && !enemyBGM.isPlaying) enemyBGM.play();
+  // if (enemyBGMReady && !enemyBGM.isPlaying) enemyBGM.play();
 });
 
 // Enemy / danger music
-const enemyBGM = new THREE.Audio(listener);
-let enemyBGMReady = false;
+// const enemyBGM = new THREE.Audio(listener);
+// let enemyBGMReady = false;
 
-audioLoader.load("/enemy.mp3", (buffer) => {
-  enemyBGM.setBuffer(buffer);
-  enemyBGM.setLoop(true);
-  enemyBGM.setVolume(0.0); // start silent
-  enemyBGMReady = true;
-});
+// audioLoader.load("/enemy.mp3", (buffer) => {
+//   enemyBGM.setBuffer(buffer);
+//   enemyBGM.setLoop(true);
+//   enemyBGM.setVolume(0.0); // start silent
+//   enemyBGMReady = true;
+// });
 
 
 // ---------- Lighting ----------
@@ -1116,7 +1123,7 @@ let playerIdleAction = null;
 
 // Each player starts in their own lane
 function loadPlayer() {
-  fbxLoader.load("./models/player.fbx", (object) => {
+  fbxLoader.load("/models/player.fbx", (object) => {
     player = object;
     let size = 0.007;
     player.scale.set(size, size, size);
@@ -1454,29 +1461,29 @@ function updatePlayer0Speed(dt) {
   if (player0Speed < 0.05) player0Speed = 0;
 }
 
-function updateEnemyMusic(dt) {
-  if (!enemyBGMReady) return;
+// function updateEnemyMusic(dt) {
+//   if (!enemyBGMReady) return;
 
-  const SPEED_THRESHOLD = 1.0;
+//   const SPEED_THRESHOLD = 1.0;
 
-  const normalTarget =
-    player0Speed < SPEED_THRESHOLD ? 0.0 : 1;
+//   const normalTarget =
+//     player0Speed < SPEED_THRESHOLD ? 0.0 : 1;
 
-  const enemyTarget =
-    player0Speed < SPEED_THRESHOLD ? 1 : 0.0;
+//   const enemyTarget =
+//     player0Speed < SPEED_THRESHOLD ? 1 : 0.0;
 
-  const FADE_SPEED = 1.8; // higher = faster crossfade
+//   const FADE_SPEED = 1.8; // higher = faster crossfade
 
-  bgm.setVolume(
-    bgm.getVolume() +
-      (normalTarget - bgm.getVolume()) * FADE_SPEED * dt
-  );
+//   bgm.setVolume(
+//     bgm.getVolume() +
+//       (normalTarget - bgm.getVolume()) * FADE_SPEED * dt
+//   );
 
-  enemyBGM.setVolume(
-    enemyBGM.getVolume() +
-      (enemyTarget - enemyBGM.getVolume()) * FADE_SPEED * dt
-  );
-}
+//   enemyBGM.setVolume(
+//     enemyBGM.getVolume() +
+//       (enemyTarget - enemyBGM.getVolume()) * FADE_SPEED * dt
+//   );
+// }
 
 
 function updateEffectiveWPM(dt) {
@@ -1959,10 +1966,10 @@ function tick(now) {
   updatePlayerSink(dt);
   updatePortalFade(dt);
   updateFogBySpeed(dt);
-  updateEnemyMusic(dt);
+  // updateEnemyMusic(dt);
 
   if (!paused) {
-    updateEnemyMusic(dt);
+    // updateEnemyMusic(dt);
 
     gameStarted = true;
     // const spd = playerSpeed(dt);
