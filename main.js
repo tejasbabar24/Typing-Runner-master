@@ -1021,7 +1021,7 @@ let countdownInterval;
 let countdownValue = 5;
 let isRunning = false;
 // Game timer (2 minutes)
-const GAME_DURATION_MS = 120 * 1000; // 120 seconds
+const GAME_DURATION_MS = 12 * 1000; // 120 seconds
 let gameEndTime = null;
 let gameTimerRunning = false;
 
@@ -1164,12 +1164,46 @@ const prog = document.getElementById("prog");
 const banner = document.getElementById("banner");
 
 const LINES = [
-  "the quick brown fox jumps over the lazy dog",
-  // "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "this is just sample text",
-  "we will add dynamic text generation later",
-  "tell me if you liked this prototype",
+  "something is wrong here",
+  "the air feels heavy tonight",
+  "the lights are flickering again",
+  "do not go alone",
+  "this place feels different",
+  "you should not be here",
+  "did you hear that sound",
+  "it is getting colder",
+  "stay close to the others",
+  "the walls feel alive",
+  "time feels broken",
+  "reality is slipping away",
+  "the silence is watching",
+  "do not trust the dark",
+  "something is coming",
+  "the ground is shaking",
+  "you are not safe here",
+  "it is closer than you think",
+  "do not look back",
+  "the shadows are moving",
+  "the door should not open",
+  "this is not our world",
+  "the lights just went out",
+  "your heart is racing",
+  "breathe and keep moving",
+  "it knows you are here",
+  "do not stop now",
+  "the night feels endless",
+  "hold on to hope",
+  "run before it finds you",
+  "gdgc is the best club of dypcoe",
+  "gdgc brings ideas together",
+  "gdgc is more than a community",
+  "techfest sparks innovation",
+  "ideas turn into action here",
+  "collaboration drives progress",
+  "techfest is where passion meets technology",
+  "thanks for playing made by yash and tejas",
 ];
+
 
 let target = "",
   idx = 0,
@@ -1961,7 +1995,7 @@ function tick(now) {
   }
 
   if (portalFade >= 1) {
-    location.assign("../leaderboard.html");
+    location.assign("/leaderboard");
   }
   updatePlayerSink(dt);
   updatePortalFade(dt);
