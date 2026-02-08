@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leaderboard</title>
     <style>
+      @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
+
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-
-      @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
 
       body {
         font-family: "Orbitron", sans-serif;
@@ -253,7 +253,13 @@
         color: #ffaa00;
         text-shadow: 0 0 5px #ff6600;
       }
-
+      .dist {
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin-left: 40px;
+        color: #00ffea;
+        text-shadow: 0 0 5px #00aaff;
+      }
       .accuracy {
         font-size: 1rem;
         color: #66ff66;
@@ -365,7 +371,7 @@
               <span class="accuracy-value">${accuracy}%</span>
               <span class="accuracy-label">ACCURACY</span>
             </div>
-            <div class="wpm">${distance} m</div>
+            <div class="dist">${distance} m</div>
         `;
         return div;
       }
