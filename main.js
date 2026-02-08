@@ -1021,7 +1021,7 @@ let countdownInterval;
 let countdownValue = 5;
 let isRunning = false;
 // Game timer (2 minutes)
-const GAME_DURATION_MS = 12 * 1000; // 120 seconds
+const GAME_DURATION_MS = 120 * 1000; // 120 seconds
 let gameEndTime = null;
 let gameTimerRunning = false;
 
