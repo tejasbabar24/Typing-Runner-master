@@ -1,7 +1,7 @@
 import {
   postScoreToFirebase,
   getScoresFromFirebase,
-} from "./firebaseScores.js";
+} from "./public/firebaseScores.js";
 
 let playerName = null;
 
