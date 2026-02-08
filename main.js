@@ -1995,7 +1995,7 @@ function tick(now) {
   }
 
   if (portalFade >= 1) {
-    location.assign("/leaderboard");
+    location.assign("/leaderboard.html");
   }
   updatePlayerSink(dt);
   updatePortalFade(dt);
