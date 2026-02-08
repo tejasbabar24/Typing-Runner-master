@@ -10,6 +10,43 @@ const waitingRoom = document.getElementById("waitingRoom");
 const playerListDiv = document.getElementById("playerList");
 const startBtn = document.getElementById("startBtn");
 
+let lobbyBGM = new Audio("/start-bgm.mpeg");
+lobbyBGM.loop = true;
+lobbyBGM.volume = 0;        // start muted
+lobbyBGM.muted = true;
+
+// START ON PAGE LOAD
+window.addEventListener("load", () => {
+  lobbyBGM.play().catch(() => {
+    // browser may still block, handled below
+  });
+});
+
+function unlockLobbyBGM() {
+  lobbyBGM.muted = false;
+
+  // smooth fade-in
+  let v = 0;
+  lobbyBGM.volume = 0;
+  const target = 0.45;
+
+  function fade() {
+    v += 0.02;
+    lobbyBGM.volume = Math.min(v, target);
+    if (v < target) requestAnimationFrame(fade);
+  }
+  fade();
+
+  document.removeEventListener("click", unlockLobbyBGM);
+  document.removeEventListener("keydown", unlockLobbyBGM);
+  document.removeEventListener("touchstart", unlockLobbyBGM);
+}
+
+document.addEventListener("click", unlockLobbyBGM);
+document.addEventListener("keydown", unlockLobbyBGM);
+document.addEventListener("touchstart", unlockLobbyBGM);
+
+
 // let myName = "";
 // let myRoom = "";
 let playerName = "";
@@ -80,6 +117,21 @@ startBtn.addEventListener("click", () => {
     // reuse existing create-room / start logic
     window.dispatchEvent(new CustomEvent("single-game-start"));
     document.getElementById("lobby").style.display = "none";
+
+    // fade out lobby BGM
+  const startVol = lobbyBGM.volume;
+  const start = performance.now();
+
+  function fadeOut(now) {
+    const t = Math.min((now - start) / 400, 1);
+    lobbyBGM.volume = startVol * (1 - t);
+    if (t < 1) requestAnimationFrame(fadeOut);
+    else {
+      lobbyBGM.pause();
+      lobbyBGM.currentTime = 0;
+    }
+  }
+  requestAnimationFrame(fadeOut);
 });
 
 

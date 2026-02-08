@@ -5,11 +5,6 @@ import {
 
 let playerName = null;
 
-window.addEventListener("single-game-start", (e) => {
-  loadPlayer();
-  startCountdownAndGame();
-});
-
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
@@ -28,7 +23,32 @@ renderer.setSize(innerWidth, innerHeight);
 const scene = new THREE.Scene();
 
 // --- STRANGER THINGS TONE ---
-scene.fog = new THREE.Fog(new THREE.Color(0x2a0b07), 10, 220); // deep red-ish fog
+const BASE_FOG_COLOR = 0x100000;
+
+scene.fog = new THREE.FogExp2(
+  BASE_FOG_COLOR,
+  0.06 // start dense (slow speed)
+);
+const FOG_DENSE = 0.175;  // slow / struggling
+const FOG_THIN  = 0.02;   // fast / confident
+
+function updateFogBySpeed(dt) {
+  if (!scene.fog || !scene.fog.isFogExp2) return;
+
+  // Normalize speed
+  const speed01 = Math.min(player0Speed / 7.5, 1);
+
+  // Invert: slow = dense fog
+  const targetDensity =
+    FOG_DENSE + (FOG_THIN - FOG_DENSE) * speed01;
+
+  // Smooth transition (very important)
+  const SMOOTH = 2.5;
+  scene.fog.density +=
+    (targetDensity - scene.fog.density) * SMOOTH * dt;
+}
+
+// scene.fog = new THREE.Fog(new THREE.Color(0x2a0b07), 10, 220); // deep red-ish fog
 
 // Camera + Controls
 const camera = new THREE.PerspectiveCamera(
@@ -55,6 +75,41 @@ function resize() {
 }
 addEventListener("resize", resize);
 resize();
+
+// BGM TRACK
+// Create an AudioListener
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+// Create a global audio source
+const bgm = new THREE.Audio(listener);
+
+// Load the audio file
+const audioLoader = new THREE.AudioLoader();
+audioLoader.load("/bgm.mp3", function (buffer) {
+  bgm.setBuffer(buffer);
+  bgm.setLoop(true); // loop forever
+  bgm.setVolume(0.4); // 0.0 to 1.0
+});
+
+window.addEventListener("single-game-start", (e) => {
+  loadPlayer();
+  startCountdownAndGame();
+  if (!bgm.isPlaying) bgm.play();
+  if (enemyBGMReady && !enemyBGM.isPlaying) enemyBGM.play();
+});
+
+// Enemy / danger music
+const enemyBGM = new THREE.Audio(listener);
+let enemyBGMReady = false;
+
+audioLoader.load("/enemy.mp3", (buffer) => {
+  enemyBGM.setBuffer(buffer);
+  enemyBGM.setLoop(true);
+  enemyBGM.setVolume(0.0); // start silent
+  enemyBGMReady = true;
+});
+
 
 // ---------- Lighting ----------
 const hemi = new THREE.HemisphereLight(0xffe9d6, 0x0b0b10, 0.8);
@@ -119,23 +174,6 @@ function updateVideoBackdrop() {
 }
 
 scene.fog = new THREE.FogExp2(0x100000, 0.04); // adjust density
-
-// BGM TRACK
-// Create an AudioListener
-const listener = new THREE.AudioListener();
-camera.add(listener);
-
-// Create a global audio source
-const bgm = new THREE.Audio(listener);
-
-// Load the audio file
-const audioLoader = new THREE.AudioLoader();
-audioLoader.load("/bgm.mp3", function (buffer) {
-  bgm.setBuffer(buffer);
-  bgm.setLoop(true); // loop forever
-  bgm.setVolume(0.4); // 0.0 to 1.0
-  bgm.play();
-});
 
 // Portal
 let portalActive = false;
@@ -263,7 +301,7 @@ portal.add(midSpores.points);
 const disc2 = new THREE.Mesh(
   new THREE.CircleGeometry(1.35, 64),
   new THREE.MeshBasicMaterial({
-    color: 0x000077,
+    color: 0x770000,
     transparent: true,
     opacity: 0.55,
     blending: THREE.AdditiveBlending,
@@ -285,7 +323,7 @@ portal.add(innerSpores.points);
 const core = new THREE.Mesh(
   new THREE.CircleGeometry(0.6, 48),
   new THREE.MeshBasicMaterial({
-    color: 0xff000033,
+    color: 0xff330000,
     transparent: true,
     opacity: 0.75,
     blending: THREE.AdditiveBlending,
@@ -440,8 +478,6 @@ const billboardTexts = [
   "STRANGER THINGS\nX\nGDGC",
   "MISSING\nHAVE YOU\nSEEN WILL?",
   "HOPPER'S\nCABIN",
-  "STRANGER THINGS\nX\nGDGC",
-  "PALACE\nARCADE",
 ];
 
 function makeSignTexture(text = "WELCOME\nTO\nHAWKINS") {
@@ -674,18 +710,39 @@ function resetLamp(L) {
 
 function updateLamps(dt, worldMove, t) {
   for (const L of lampPool) {
+    // move with world
     L.position.z += worldMove;
-    // random stuttered flicker
-    const flicker =
-      Math.sin(t * 3 + L.userData.phase) > 0.7
-        ? 1
-        : Math.random() < 0.02
-          ? 1
-          : 0;
-    const intensity = flicker ? 0.6 + Math.random() * 1.4 : 0.0;
-    L.userData.spot.intensity = intensity;
-    L.userData.head.material.emissiveIntensity = intensity * 2.0;
-    if (L.position.z > camera.position.z + 6) resetLamp(L);
+
+    // --- INIT USER DATA ---
+    if (L.userData.flickerTimer === undefined) {
+      L.userData.flickerTimer = 0;
+      L.userData.targetIntensity = 0;
+    }
+
+    // --- RANDOM FLICKER TRIGGER ---
+    if (L.userData.flickerTimer <= 0 && Math.random() < 0.08) {
+      L.userData.flickerTimer = 0.08 + Math.random() * 0.18; // burst duration
+      L.userData.targetIntensity = 0.6 + Math.random() * 1.4;
+    }
+
+    // countdown
+    L.userData.flickerTimer -= dt;
+
+    if (L.userData.flickerTimer <= 0) {
+      L.userData.targetIntensity = 0;
+    }
+
+    // --- SMOOTH INTENSITY ---
+    const current = L.userData.spot.intensity;
+    const next = current + (L.userData.targetIntensity - current) * 10 * dt;
+
+    L.userData.spot.intensity = next;
+    L.userData.head.material.emissiveIntensity = next * 2.2;
+
+    // recycle
+    if (L.position.z > camera.position.z + 6) {
+      resetLamp(L);
+    }
   }
 }
 
@@ -889,10 +946,10 @@ function makeRiftGroup() {
 
 // Pool
 const riftPool = [];
-const RIFT_COUNT = 7;
+const RIFT_COUNT = 17;
 function placeRift(r, first = false) {
   const side = Math.random() < 0.5 ? -1 : 1;
-  const x = side * (9 + Math.random() * 6);
+  const x = side * (3 + Math.random() * 6);
   const y = 0.6 + Math.random() * 1.6;
   const z = first
     ? camera.position.z - (70 + Math.random() * 160)
@@ -1194,6 +1251,8 @@ inputEl.addEventListener("keydown", (e) => {
     e.preventDefault(); // 🚫 ignore typing
   }
 });
+const ACC_WINDOW = 20; // last 20 keystrokes (tune 15–30)
+let recentHits = [];
 
 // --- INPUT HANDLER ---
 inputEl.addEventListener("input", () => {
@@ -1240,17 +1299,28 @@ inputEl.addEventListener("input", () => {
 
   // trigger stumble only on newly added char and track session counters
   if (inputVal.length > prevInputLen) {
-    const pos = inputVal.length - 1;
-    // increment session counters only on newly typed character
-    sessionTyped++;
-    if (pos < target.length && inputVal[pos] !== target[pos]) {
-      sessionWrong++;
-      stumble();
-    } else if (pos >= target.length) {
-      sessionWrong++;
-      stumble();
-    }
+  const pos = inputVal.length - 1;
+  sessionTyped++;
+
+  let correct = true;
+
+  if (pos < target.length && inputVal[pos] !== target[pos]) {
+    correct = false;
+    sessionWrong++;
+    stumble();
+  } else if (pos >= target.length) {
+    correct = false;
+    sessionWrong++;
+    stumble();
   }
+
+  // ---- RECENT ACCURACY WINDOW ----
+  recentHits.push(correct ? 1 : 0);
+  if (recentHits.length > ACC_WINDOW) {
+    recentHits.shift();
+  }
+}
+
   prevInputLen = inputVal.length;
 
   // update visuals
@@ -1308,53 +1378,50 @@ const SPEED_STOP_TIME = 0.1;
 let effectiveWPM = 0; // smoothed WPM used for speed
 const WPM_COOLDOWN_TIME = 2.0; // seconds to reach 0
 
-// let isIdle = true;
+function getRecentAccuracy() {
+  if (recentHits.length === 0) return 1;
+  let sum = 0;
+  for (let i = 0; i < recentHits.length; i++) {
+    sum += recentHits[i];
+  }
+  return sum / recentHits.length;
+}
 
-// Example: adjust speed by typing system (hook this to your typing accuracy logic)
-// function updatePlayer0Speed() {
-//     const { wpm, acc } = computeStats();
-//     // const smooth = getSmoothedWPM(wpm);
-
-//     const BASE_SPEED = 0;   // minimum movement (never zero)
-//     const MAX_BONUS = 2.2;    // skill-based bonus
-
-//     // softer accuracy curve (allows recovery)
-//     const accFactor = 0.5 + 0.5 * Math.pow(acc, 1.2); // 0.5 → 1.0
-
-//     // WPM contribution
-//     const wpmFactor = Math.max(wpm, 20); // 0 → 1
-
-//     player0Speed = BASE_SPEED + accFactor * wpmFactor * MAX_BONUS;
-// }
 
 // function updatePlayer0Speed(dt) {
-//     const now = performance.now();
-//     const typingActive = (now - lastTypeTime) < 300; // 300ms grace window
+//   const now = performance.now();
+//   const typingActive = now - lastTypeTime < 300;
 
-//     if (typingActive) {
-//         const { wpm, acc } = computeStats();
+//   if (typingActive) {
+//     const { wpm, acc } = computeStats();
 
-//         const MAX_SPEED = 25.0;
-//         const ACC_FACTOR = 0.6 + 0.4 * Math.pow(acc, 1.2);
-//         const WPM_FACTOR = Math.min(wpm / 60, 1); // normalize
+//     const MAX_SPEED = 7.5;
 
-//         targetSpeed = MAX_SPEED * ACC_FACTOR * WPM_FACTOR;
-//     } else {
-//         targetSpeed = 0; // no typing → slow down
+//     const accFactor = 0.6 + 0.4 * Math.pow(acc, 1.2);
+//     const wpmFactor = Math.min(wpm / 60, 1);
+
+//     targetSpeed = MAX_SPEED * accFactor * wpmFactor;
+//   } else {
+//     targetSpeed = 0;
+//   }
+
+//   // ---- ACCELERATION ----
+//   if (player0Speed < targetSpeed) {
+//     const ACCEL = 14.0;
+//     player0Speed += (targetSpeed - player0Speed) * ACCEL * dt;
+//   }
+
+//   // ---- SMOOTH DECELERATION (KEY FIX) ----
+//   if (targetSpeed === 0 && player0Speed > 0) {
+//     // Linear time-based slowdown
+//     const decelPerSecond =
+//       player0Speed / (SPEED_STOP_TIME + player0Speed * 0.1);
+//     player0Speed -= decelPerSecond * dt;
+
+//     if (player0Speed < 0.05) {
+//       player0Speed = 0;
 //     }
-
-//     // Smooth acceleration & deceleration
-//     const ACCEL = 10.0;   // higher = snappier
-//     const DECAY = 1/100000;    // friction
-
-//     if (player0Speed < targetSpeed) {
-//         player0Speed += ACCEL * dt;
-//     } else {
-//         player0Speed -= player0Speed * DECAY * dt;
-//     }
-
-//     // Clamp
-//     player0Speed = Math.max(0, Math.min(player0Speed, targetSpeed));
+//   }
 // }
 
 function updatePlayer0Speed(dt) {
@@ -1362,11 +1429,16 @@ function updatePlayer0Speed(dt) {
   const typingActive = now - lastTypeTime < 300;
 
   if (typingActive) {
-    const { wpm, acc } = computeStats();
+    const { wpm } = computeStats();
+    const recentAcc = getRecentAccuracy();
 
     const MAX_SPEED = 7.5;
 
-    const accFactor = 0.6 + 0.4 * Math.pow(acc, 1.2);
+    // ---- ACCURACY HAS STRONG EFFECT ----
+    // Below 80% accuracy → harsh slowdown
+    const accFactor = Math.pow(recentAcc, 2.5); // 🔥 nonlinear punishment
+
+    // WPM contributes, but accuracy gates it
     const wpmFactor = Math.min(wpm / 60, 1);
 
     targetSpeed = MAX_SPEED * accFactor * wpmFactor;
@@ -1374,24 +1446,38 @@ function updatePlayer0Speed(dt) {
     targetSpeed = 0;
   }
 
-  // ---- ACCELERATION ----
-  if (player0Speed < targetSpeed) {
-    const ACCEL = 14.0;
-    player0Speed += (targetSpeed - player0Speed) * ACCEL * dt;
-  }
+  // ---- ACCELERATION (fast recovery) ----
+  const ACCEL = 16.0;
+  player0Speed += (targetSpeed - player0Speed) * ACCEL * dt;
 
-  // ---- SMOOTH DECELERATION (KEY FIX) ----
-  if (targetSpeed === 0 && player0Speed > 0) {
-    // Linear time-based slowdown
-    const decelPerSecond =
-      player0Speed / (SPEED_STOP_TIME + player0Speed * 0.1);
-    player0Speed -= decelPerSecond * dt;
-
-    if (player0Speed < 0.05) {
-      player0Speed = 0;
-    }
-  }
+  // Clamp
+  if (player0Speed < 0.05) player0Speed = 0;
 }
+
+function updateEnemyMusic(dt) {
+  if (!enemyBGMReady) return;
+
+  const SPEED_THRESHOLD = 1.0;
+
+  const normalTarget =
+    player0Speed < SPEED_THRESHOLD ? 0.0 : 1;
+
+  const enemyTarget =
+    player0Speed < SPEED_THRESHOLD ? 1 : 0.0;
+
+  const FADE_SPEED = 1.8; // higher = faster crossfade
+
+  bgm.setVolume(
+    bgm.getVolume() +
+      (normalTarget - bgm.getVolume()) * FADE_SPEED * dt
+  );
+
+  enemyBGM.setVolume(
+    enemyBGM.getVolume() +
+      (enemyTarget - enemyBGM.getVolume()) * FADE_SPEED * dt
+  );
+}
+
 
 function updateEffectiveWPM(dt) {
   const now = performance.now();
@@ -1606,6 +1692,7 @@ function triggerLightning() {
   // animate bolt visibility (immediate)
   boltMat.opacity = isBig ? 0.85 : 0.35;
   lightningLight.intensity = flashIntensity;
+  scene.fog.density *= 0.6; // momentary clarity
 
   // trigger rift flash: stronger for big flashes, smaller for small flickers
   triggerRiftFlash(isBig ? 1.0 : 0.35);
@@ -1628,6 +1715,11 @@ function triggerLightning() {
 
   // schedule next lightning
   nextLightningTime = performance.now() + 2000 + Math.random() * 6000;
+
+  for (const L of lampPool) {
+    L.userData.targetIntensity = 2.5;
+    L.userData.flickerTimer = 0.15;
+  }
 }
 
 // --- Scenery Pools ---
@@ -1650,20 +1742,105 @@ function spawnScenery(mesh, roadWidth = 5, sideOffset = 5, worldDepth = 100) {
 }
 
 // --- Procedural Elements ---
-
 // Tree (cylinder trunk + cone leaves)
-function makeTree() {
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.5, 0.5, 4, 8),
-    new THREE.MeshStandardMaterial({ color: 0x5a3a1a }),
+function makeDeadTree() {
+  const tree = new THREE.Group();
+
+  const barkMat = new THREE.MeshStandardMaterial({
+    color: 0x2b1c12,
+    roughness: 0.98,
+    metalness: 0.02,
+  });
+
+  // Utility: cylinder whose BASE is at y = 0
+  function makeBranchMesh(radiusTop, radiusBottom, height) {
+    const geo = new THREE.CylinderGeometry(
+      radiusTop,
+      radiusBottom,
+      height,
+      7,
+      1,
+      true,
+    );
+    geo.translate(0, height / 2, 0); // 🔑 anchor base at y=0
+    return new THREE.Mesh(geo, barkMat);
+  }
+
+  // ---------------- TRUNK ----------------
+  const trunkHeight = 3 + Math.random() * 5;
+  const trunk = makeBranchMesh(
+    0.35 + Math.random() * 0.1,
+    0.65 + Math.random() * 0.2,
+    trunkHeight,
   );
-  const leaves = new THREE.Mesh(
-    new THREE.ConeGeometry(3, 6, 8),
-    new THREE.MeshStandardMaterial({ color: 0x0a5a0a }),
-  );
-  leaves.position.y = 5;
-  trunk.add(leaves);
-  return trunk;
+  trunk.rotation.z = (Math.random() - 0.5) * 0.15;
+  tree.add(trunk);
+
+  // ---------------- RECURSIVE BRANCH ----------------
+  function growBranch(parent, length, radius, depth) {
+    const branch = makeBranchMesh(radius * 0.55, radius, length);
+
+    // rotate away from parent
+    branch.rotation.z =
+      (0.4 + Math.random() * 0.6) * (Math.random() < 0.5 ? -1 : 1);
+    branch.rotation.x = (Math.random() - 0.5) * 0.4;
+    branch.rotation.y = Math.random() * Math.PI * 2;
+
+    parent.add(branch);
+
+    // spawn sub-branches FROM THE END of this branch
+    if (depth > 0) {
+      const count = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < count; i++) {
+        const child = new THREE.Group();
+        child.position.y = length * (0.5 + Math.random() * 0.4);
+        branch.add(child);
+
+        growBranch(
+          child,
+          length * (0.5 + Math.random() * 0.3),
+          radius * 0.55,
+          depth - 1,
+        );
+      }
+    } else {
+      // broken tip
+      const tipGeo = new THREE.ConeGeometry(radius * 0.6, radius * 2, 5);
+      tipGeo.translate(0, radius, 0);
+      const tip = new THREE.Mesh(tipGeo, barkMat);
+      tip.position.y = length;
+      tip.rotation.z = (Math.random() - 0.5) * 0.6;
+      branch.add(tip);
+    }
+  }
+
+  // ---------------- MAIN BRANCHES ----------------
+  const branchCount = 3 + Math.floor(Math.random() * 3);
+
+  for (let i = 0; i < branchCount; i++) {
+    const attach = new THREE.Group();
+    attach.position.y = trunkHeight * (0.45 + Math.random() * 0.35);
+    trunk.add(attach);
+
+    growBranch(
+      attach,
+      2.4 + Math.random() * 2.2,
+      0.18 + Math.random() * 0.06,
+      1, // sub-branch depth
+    );
+  }
+
+  // ---------------- BROKEN TRUNK TOP ----------------
+  if (Math.random() > 0.55) {
+    const topGeo = new THREE.ConeGeometry(0.45, 1.2, 6);
+    topGeo.translate(0, 0.6, 0);
+    const brokenTop = new THREE.Mesh(topGeo, barkMat);
+    brokenTop.position.y = trunkHeight;
+    brokenTop.rotation.z = (Math.random() - 0.5) * 0.7;
+    trunk.add(brokenTop);
+  }
+
+  return tree;
 }
 
 // Rock (icosahedron)
@@ -1732,9 +1909,11 @@ function makeDebris() {
 
 // --- Initialize a few of each ---
 function initScenery() {
+  for (let i = 0; i < 20; i++) {
+    spawnScenery(makeDeadTree(), 3, 2);
+  }
+  spawnScenery(makeRock());
   for (let i = 0; i < 10; i++) {
-    spawnScenery(makeTree());
-    spawnScenery(makeRock());
     spawnScenery(makeMushroom());
     spawnScenery(makeLamp());
     spawnScenery(makeSign());
@@ -1779,8 +1958,12 @@ function tick(now) {
   }
   updatePlayerSink(dt);
   updatePortalFade(dt);
+  updateFogBySpeed(dt);
+  updateEnemyMusic(dt);
 
   if (!paused) {
+    updateEnemyMusic(dt);
+
     gameStarted = true;
     // const spd = playerSpeed(dt);
     const worldMove = player0Speed * dt;
