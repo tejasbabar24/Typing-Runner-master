@@ -11,6 +11,7 @@ Meghasham Nemade (github.com/Meghasham-Nemade-242007) - Front End & UI Developer
 
 */
 
+
 import {
   postScoreToFirebase,
   getScoresFromFirebase,
@@ -43,7 +44,7 @@ scene.fog = new THREE.FogExp2(
   0.06 // start dense (slow speed)
 );
 const FOG_DENSE = 0.145;  // slow / struggling
-const FOG_THIN = 0.02;   // fast / confident
+const FOG_THIN  = 0.02;   // fast / confident
 
 function updateFogBySpeed(dt) {
   if (!scene.fog || !scene.fog.isFogExp2) return;
@@ -58,7 +59,7 @@ function updateFogBySpeed(dt) {
   const current = scene.fog.density;
 
   // Different smoothing speeds
-  const SMOOTH_IN = 1.5;  // dense comes slowly
+  const SMOOTH_IN  = 1.5;  // dense comes slowly
   const SMOOTH_OUT = 7.5;  // clears quickly
 
   const smooth =
@@ -1219,17 +1220,7 @@ const LINES = [
   "india is my country all indians are my brothers and sisters ",
   "michael jordan is the goat"
 ];
-let linePool = [];
 
-function resetLinePool() {
-  linePool = LINES.map((_, i) => i);
-
-  // optional: shuffle for randomness
-  for (let i = linePool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [linePool[i], linePool[j]] = [linePool[j], linePool[i]];
-  }
-}
 
 
 let target = "",
@@ -1251,32 +1242,22 @@ let enemyBoost = 0.1;
 let prevInputLen = 0;
 
 function newLine() {
-  // refill if all lines used
-  if (linePool.length === 0) {
-    resetLinePool(); // or end game if you prefer
-  }
-
-  const index = linePool.pop(); // remove used line
-  target = LINES[index];
-
+  target = LINES[(Math.random() * LINES.length) | 0];
   idx = 0;
   inputEl.value = "";
+  // keep session stats intact; only reset line-level counters
   typedCount = 0;
   wrongCount = 0;
   prevInputLen = 0;
   startedAt = null;
-
   renderPrompt();
   prog.style.width = "0%";
-
   if (gameOver) {
     resetPositions();
     gameOver = false;
   }
-
   inputEl.focus();
 }
-
 
 function resetPositions() {
   if (player) {
@@ -1286,24 +1267,6 @@ function resetPositions() {
   momentum = 0;
 
   if (enemy) enemy.position.set(0, 0, 5);
-}
-function jumpToNextWord() {
-  // idx = current caret position (input length)
-  let i = idx;
-
-  // skip current word characters
-  while (i < target.length && target[i] !== " ") {
-    i++;
-  }
-
-  // skip spaces
-  while (i < target.length && target[i] === " ") {
-    i++;
-  }
-
-  // force input value to match jump
-  inputEl.value = target.slice(0, i);
-  prevInputLen = inputEl.value.length;
 }
 
 // --- RENDER PROMPT FUNCTION ---
@@ -1331,18 +1294,13 @@ function renderPrompt() {
   promptEl.innerHTML = html;
   idx = inputVal.length; // always advance by input length, even with mistakes
 }
-function isAtEndOfSentence() {
-  // trim end spaces and check if idx is at or past last character
-  let lastCharIndex = target.trimEnd().length;
-  return idx >= lastCharIndex;
-}
 
 function escapeHTML(s) {
   return String(s).replace(
     /[&<>"']/g,
     (m) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-      m
+        m
       ],
   );
 }
@@ -1382,64 +1340,24 @@ inputEl.addEventListener("input", () => {
   }
 
   const inputVal = inputEl.value || "";
-  // 🔥 MONKEYTYPE WORD SKIP (INPUT-BASED)
-  if (inputVal.length > prevInputLen) {
-    const lastChar = inputVal[inputVal.length - 1];
-
-    if (lastChar === " ") {
-
-      // 🔥 IF AT END → COMPLETE LINE
-      if (isAtEndOfSentence()) {
-        inputEl.value = target; // force full completion
-        prevInputLen = inputEl.value.length;
-
-        renderPrompt();
-        prog.style.width = "100%";
-
-        lineCompleteBurst = 1.2;
-        newLine();
-        return;
-      }
-
-      // 🟡 NORMAL WORD SKIP
-      inputEl.value = inputVal.slice(0, -1);
-      jumpToNextWord();
-
-      renderPrompt();
-      prog.style.width = (idx / Math.max(1, target.length)) * 100 + "%";
-      return;
-    // }
-
-    // // remove the typed space
-    // inputEl.value = inputVal.slice(0, -1);
-
-    // // jump to next word
-    // jumpToNextWord();
-
-    // renderPrompt();
-    // prog.style.width = (idx / Math.max(1, target.length)) * 100 + "%";
-    // return; // 🚫 stop normal processing
-  }
-}
-
 
   // recompute stats
   typedCount = inputVal.length;
-wrongCount = 0;
-for (let i = 0; i < inputVal.length && i < target.length; i++) {
-  if (inputVal[i] !== target[i]) wrongCount++;
-}
-if (inputVal.length > target.length) {
-  wrongCount += inputVal.length - target.length;
-}
+  wrongCount = 0;
+  for (let i = 0; i < inputVal.length && i < target.length; i++) {
+    if (inputVal[i] !== target[i]) wrongCount++;
+  }
+  if (inputVal.length > target.length) {
+    wrongCount += inputVal.length - target.length;
+  }
 
-// Session start (only once)
-if (!sessionStart && inputVal.length > 0) {
-  sessionStart = performance.now();
-}
+  // Session start (only once)
+  if (!sessionStart && inputVal.length > 0) {
+    sessionStart = performance.now();
+  }
 
-// trigger stumble only on newly added char and track session counters
-if (inputVal.length > prevInputLen) {
+  // trigger stumble only on newly added char and track session counters
+  if (inputVal.length > prevInputLen) {
   const pos = inputVal.length - 1;
   sessionTyped++;
 
@@ -1462,18 +1380,18 @@ if (inputVal.length > prevInputLen) {
   }
 }
 
-prevInputLen = inputVal.length;
+  prevInputLen = inputVal.length;
 
-// update visuals
-renderPrompt();
-// updatePlayer0Speed(dt);
-prog.style.width = (idx / Math.max(1, target.length)) * 100 + "%";
+  // update visuals
+  renderPrompt();
+  // updatePlayer0Speed(dt);
+  prog.style.width = (idx / Math.max(1, target.length)) * 100 + "%";
 
-// completed line?
-if (idx >= target.length) {
-  lineCompleteBurst = 1.2;
-  newLine();
-}
+  // completed line?
+  if (idx >= target.length) {
+    lineCompleteBurst = 1.2;
+    newLine();
+  }
 });
 
 refreshBtn.addEventListener("click", newLine);
